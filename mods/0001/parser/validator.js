@@ -43,9 +43,6 @@ module.exports = class Validator {
           case (!["mount", "extract", "move", "delete"].includes(el.action)):
             throw new Error("Provided action type was not found. Please, read documentation to learn more.")
             break
-          case (!["file", "folder", "archive"].includes(el.type)):
-            throw new Error("Provided file type is unknown.")
-            break
           case typeof el.file !== "string":
             if (Array.isArray(el.file)) {
               if (el.file.filter(e => typeof e === "string").length !== el.file.length) {

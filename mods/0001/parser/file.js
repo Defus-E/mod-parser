@@ -1,19 +1,19 @@
 // const extract = require("extract-zip");
-const { exec } = require("child_process");
 const Directory = require("./directory");
 const path = require("path");
 const fs = require("fs");
 
+const { mklink } = require("./commander");
+
 module.exports = class File {
-  constructor({ file, src, dest, type }) {
+  constructor({ file, src, dest }) {
     this.src = src || "";
     this.dest = dest || "";
-    this.type = type || "file";
-    this.file = Array.isArray(file) ? file : [file];
+    this.filename = Array.isArray(file) ? file : [file];
   }
 
   mount() {
-    for (const file of this.file) {
+    for (const file of this.filename) {
       this._mount(file);
     }
   }
@@ -36,31 +36,36 @@ module.exports = class File {
     const absoluteSourcePath = path.join(__dirname, path.relative(__dirname, source));
     const stat = fs.lstatSync(absoluteSourcePath);
 
-    try {
-      if (stat.isDirectory() ) {
-        if (this.type === "file") {
-          const dir = new Directory(absoluteSourcePath);
-          const files = dir.read();
+    if (stat.isDirectory()) {
+      const dir = new Directory(absoluteSourcePath);
+      const { files, folders } = dir.read();
 
-          for (const file of files) {
-            exec(`mklink ${destination}\\${file} ${source}\\${file}`, err =>
-              err ? console.error(err) : null);
-          }
-        } else {
-
-        }
-      } else {
-        exec(`mklink ${destination}\\${file} ${source}`, err =>
-          err ? console.error(err) : null);
+      for (const dirFile of files) {
+        // console.log(this.dest, `${source}\\${dirFile}`, `${destination}\\${dirFile}`);
+        mklink(`${source}\\${dirFile}`, `${destination}\\${dirFile}`);
       }
-    } catch (e) {
-      throw e;
+
+      for (const folder of folders) {
+        let pathToFolder = path.join(destination, folder);
+
+        Directory.makeDir(pathToFolder);
+
+        this.dest = path.join(this.dest, folder);
+        this._mount(path.join(file, folder));
+      }
+
+      this.dest = this.dest.split(/\\|\//).length <= 1 ? this.dest : this.dest
+        .split(/\\|\//)
+        .slice(0, -1)
+        .join("\\");
+    } else {
+      mklink(source, `${destination}\\${file}`);
     }
   }
 
   _move() {
-    const { source, destination } = File._normalizePaths(this.file, this.src, this.dest);
-    const destFile = path.join(destination, this.file);
+    const { source, destination } = File._normalizePaths(this.filename, this.src, this.dest);
+    const destFile = path.join(destination, this.filename);
 
     try {
       fs.renameSync(source, destFile);
@@ -85,26 +90,23 @@ module.exports = class File {
   }
 
   _delete() {
-    const { source } = File._normalizePaths(this.file, this.src);
-    fs.unlinkSync(source);
-  }
+    const { source } = File._normalizePaths(this.filename, this.src, path.join(this.src, this.filename + ".rm"));
+    const destFile = path.join(destination, this.filename);
 
-  // async extract() {
-  //   const { source, destination } = await File._normalizePaths(this.file, this.src, this.dest);
-  //   await extract(source, { dir: destination });
-  // }
+    fs.renameSync(source, destFile);
+  }
 
   static _normalizePaths(file, src, dest) {
     const modId = (__dirname.match(/(?<=mods(\/|\\)).+?((\\|\/)|$)/) || [])[0];
     const KLD = (__dirname.match(/^.+\\(?=mods)/) || [])[0];
 
-    if (/^\$mod(\\|\/)?$/.test(src)) {
+    if (/^\$mod(\\|\/)?/.test(src)) {
       src = path.join(KLD, "mods", src.replace("$mod", modId), file);
-    } else if (/^\$engine(\\|\/)?$/.test(src)) {
+    } else if (/^\$engine(\\|\/)?/.test(src)) {
       src = path.join(KLD, "engines", src.replace("$engine", modId), file);
     }
 
-    dest = /^\$game(\\|\/)?$/.test(dest) ? path.join(KLD, "game") : dest;
+    dest = /^\$game(\\|\/)?/.test(dest) ? path.join(KLD, dest.replace("$game", "game")) : dest;
 
     return [
       path.relative(process.cwd(), src),

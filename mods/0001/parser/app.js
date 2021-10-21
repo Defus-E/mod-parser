@@ -25,17 +25,15 @@ module.exports = class App {
     Directory.makeDir("$game");
 
     const engineDb = new File({
-      type: "folder",
       file: "db/ru",
       src: "$engine",
       dest: "$game"
     });
 
-    engineDb.mount();
+    engineDb.mount({ flatMap: true });
     console.log("Engine files were successfully mounted!");
 
     const patch = new File({
-      type: "file",
       file: [`patch/ru/${this.patchId}`, "fsgame.ltx", "stalker.ico"],
       src: "$engine",
       dest: "$game"
@@ -50,7 +48,7 @@ module.exports = class App {
       const file = new File(actionObj);
 
       file[action]();
-      console.log(`Action \`${action}\` was successfully executed upon ${file}`);
+      console.log(`Action \`${action}\` was successfully executed upon ${file.filename}`);
     });
   }
 

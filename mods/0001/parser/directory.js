@@ -6,22 +6,24 @@ module.exports = class Directory {
     this.dir = dir;
   }
 
-  read(dir = this.dir, allFiles = []) {
+  read() {
+    return this._read(this.dir);
+  }
+
+  _read(dir) {
     const dirElements = (readdirSync(dir, { withFileTypes: true }));
     const onlyFiles = dirElements
       .filter(elem => elem.isFile())
-      .map(f => join(dir, f.name));
+      .map(f => f.name);
 
     const onlyFolders = dirElements
       .filter(elem => elem.isDirectory())
-      .map(f => join(dir, f.name));
+      .map(f => f.name);
 
-    allFiles.push(...onlyFiles);
-
-    onlyFolders.map(f =>
-      this.read(f, allFiles))
-
-    return allFiles.map(file => file.split(/(\\|\/)/).pop());
+    return {
+      files: onlyFiles,
+      folders: onlyFolders,
+    };
   }
 
   static makeDir(dirPath) {
